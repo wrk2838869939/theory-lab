@@ -1,0 +1,7 @@
+{
+  "authorization": "在此记录预算授权（谁、何时、批准了多少次外部调用）；修改上限时保留既有 attempts 计数",
+  "max_calls": 20,
+  "max_output_tokens_per_call": 8192,
+  "attempts": 0,
+  "reservations": []
+}

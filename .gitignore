@@ -1,0 +1,13 @@
+state/prompts/
+state/responses/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.cache/
+.venv/
+venv/
+state/provider.lock
+*.secret
+.ipynb_checkpoints/

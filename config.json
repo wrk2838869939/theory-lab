@@ -1,0 +1,82 @@
+{
+  "agents": {
+    "T1": {
+      "name": "T1-deriver",
+      "backend": "api",
+      "protocol": "responses",
+      "base_url": "https://api.openai.com/v1",
+      "model": "REPLACE_WITH_YOUR_MODEL",
+      "api_key_env": "OPENAI_API_KEY",
+      "role_file": "protocol/T1-deriver.md",
+      "reasoning_effort": "high",
+      "max_tokens": 8192,
+      "timeout": 240
+    },
+    "T2": {
+      "name": "T2-referee",
+      "backend": "api",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "REPLACE_WITH_YOUR_MODEL",
+      "api_key_env": "ZHIPU_API_KEY",
+      "role_file": "protocol/T2-referee.md",
+      "temperature": 1.0,
+      "max_tokens": 8192,
+      "timeout": 240
+    },
+    "R1": {
+      "name": "R1-scout",
+      "backend": "api",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "REPLACE_WITH_YOUR_MODEL",
+      "api_key_env": "ZHIPU_API_KEY",
+      "role_file": "protocol/R1-scout.md",
+      "temperature": 1.0,
+      "max_tokens": 8192,
+      "timeout": 240
+    },
+    "R2": {
+      "name": "R2-builder",
+      "backend": "api",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "REPLACE_WITH_YOUR_MODEL",
+      "api_key_env": "ZHIPU_API_KEY",
+      "role_file": "protocol/R2-builder.md",
+      "temperature": 1.0,
+      "max_tokens": 8192,
+      "timeout": 240
+    },
+    "ALT": {
+      "name": "ALT-independent-reviewer",
+      "backend": "api",
+      "base_url": "https://api.moonshot.cn/v1",
+      "model": "REPLACE_WITH_YOUR_MODEL",
+      "api_key_env": "MOONSHOT_API_KEY",
+      "role_file": "protocol/T2-referee.md",
+      "temperature": 1.0,
+      "max_tokens": 8192,
+      "timeout": 240
+    }
+  },
+  "phase_agent": {
+    "statement": "T2",
+    "lit-scan": "R1",
+    "sketch": "T1",
+    "rank": "T2",
+    "derive": "T1",
+    "verify": "T2",
+    "experiment": "R2",
+    "lit-check": "R1",
+    "integrate": "R2",
+    "paper_review": "T2"
+  },
+  "context_files": [],
+  "verify_scripts": [],
+  "policy": {
+    "max_repair_rounds": 4,
+    "max_statement_rounds": 2,
+    "max_steps_per_run": 12,
+    "max_chars_per_artifact": 16000,
+    "max_paper_reviews": 3,
+    "auto_commit": false
+  }
+}
