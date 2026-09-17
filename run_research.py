@@ -99,6 +99,8 @@ def main():
     parser.add_argument("--check-models", action="store_true")
     parser.add_argument("--pipeline-steps", type=int, default=0)
     parser.add_argument("--thm")
+    parser.add_argument("--mode", choices=("interactive", "autonomous"), default=None,
+                        help="转发给编排器的运行模式（见 orchestrator.py --mode）")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     cfg = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
@@ -113,6 +115,8 @@ def main():
         sys.argv = ["orchestrator.py", "--steps", str(args.pipeline_steps)]
         if args.thm:
             sys.argv += ["--thm", args.thm]
+        if args.mode:
+            sys.argv += ["--mode", args.mode]
         orchestrator.main()
         return 0
     OUT.mkdir(parents=True, exist_ok=True)
