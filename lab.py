@@ -46,23 +46,31 @@ def verify():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("status", "check", "pilot", "pipeline", "verify"),
-                        nargs="?", default="status")
+    parser.add_argument("route", dest="route",
+                        choices=("status", "check", "pilot", "pipeline", "auto", "verify"),
+                        nargs="?", default="status",
+                        help="auto=自主模式推进至全部任务终态；pipeline=interactive 推进 N 阶段")
     parser.add_argument("--steps", type=int, default=4)
+    parser.add_argument("--mode", choices=("interactive", "autonomous"), default=None,
+                        help="pipeline/auto 的运行模式（默认取 config.json policy.default_mode）")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
-    if args.mode == "verify":
+    if args.route == "verify":
         return verify()
     routes = {
         "status": ["orchestrator.py", "--status"],
         "check": ["run_research.py", "--check-models", "--prompt-keys"],
         "pilot": ["run_research.py", "--prompt-keys"],
         "pipeline": ["run_research.py", "--pipeline-steps", str(args.steps), "--prompt-keys"],
+        "auto": ["orchestrator.py", "--auto"],
     }
+    command = list(routes[args.route])
+    if args.route in ("pipeline", "auto") and args.mode:
+        command += ["--mode", args.mode]
     if not 1 <= args.steps <= 20:
         parser.error("--steps must be between 1 and 20")
-    code = subprocess.call([sys.executable, "-X", "utf8", *routes[args.mode]], cwd=ROOT)
-    if args.mode == "status":
+    code = subprocess.call([sys.executable, "-X", "utf8", *command], cwd=ROOT)
+    if args.route == "status":
         budget = json.loads((ROOT / "state/budget.json").read_text(encoding="utf-8"))
         print("External calls: {}/{}; per-call output cap: {}".format(
             budget["attempts"], budget["max_calls"], budget["max_output_tokens_per_call"]))

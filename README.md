@@ -82,13 +82,31 @@ python lab.py status           # 台账 + 预算
 python lab.py verify           # 本地回归测试（不消耗预算）
 python lab.py check            # 查询供应商可用模型（计一次预算）
 python lab.py pilot            # 两模型独立推导 + 交叉审稿（消耗预算）
-python lab.py pipeline --steps 4   # 按台账推进 4 个阶段
+python lab.py pipeline --steps 4   # 按台账推进 4 个阶段（interactive 模式）
+python lab.py auto                  # 自主模式：推进到全部任务终态（见下节）
 python orchestrator.py --dry-run   # 只渲染提示词，不调用、不改状态
 python orchestrator.py --audit     # 生成审计报告与验证附录
 ```
 
 试点任务文本放在 `research/pilot-task.md`（模板见 `research/pilot-task.example.md`）。
 Windows 可用 `start-research.cmd <mode>` 入口。
+
+## 两种运行模式
+
+| 模式 | 停机行为 | 适用 |
+|---|---|---|
+| **interactive**（默认） | 任一 blocked/refuted 立即**整体停机**转人工门；`--auto` 受 `policy.max_steps_per_run` 步数上限约束 | 有人监督的分段推进 |
+| **autonomous** | 宿主协调者接管停机决策：blocked/refuted 项**留置**（不销毁、不跳过证据门），流水线继续处理其余任务，直到全部任务到达终态才结束；`--auto` 不设步数上限 | 完全脱离的批量运行（研究方向决策由宿主协调者控制） |
+
+```bash
+python orchestrator.py --auto --mode autonomous   # 等价：python lab.py auto
+python orchestrator.py --steps 4 --mode autonomous  # 也可有界推进
+```
+
+自主模式解除的只是**决策性停机**，不是安全边界：调用预算（耗尽即停、失败也计数）、
+证据门（无宿主收据不成文）、修复/复审/全文审查轮次上限、输出截断保护全部照常生效；
+运行结束时会汇总留置待人工跟进的条目与论文门状态。默认模式可在
+ `config.json` 的 `policy.default_mode` 中调整。
 
 ## 预算与证据模型
 

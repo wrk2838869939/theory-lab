@@ -77,6 +77,7 @@
     "max_steps_per_run": 12,
     "max_chars_per_artifact": 16000,
     "max_paper_reviews": 3,
-    "auto_commit": false
+    "auto_commit": false,
+    "default_mode": "interactive"
   }
 }

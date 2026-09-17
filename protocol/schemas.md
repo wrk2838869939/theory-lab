@@ -38,7 +38,10 @@ candidate => statement --PASS--> lit-scan --CLEAR--> [sketch -> rank ->]? derive
 ```
 - sketch/rank 仅对 `"tournament": true` 的定理启用：T1 按 N 个技术视角各出一份证明草图 → T2 锦标赛排名（WINNER: k）→ 只对胜者 derive。
 - lit-scan（前置，防撞车）与 lit-check（收口，核实证明中 [LIT] 引用并复核新颖性）都由 R1 执行。
-- 任一 blocked / refuted：编排器停机，转人工门。
+- interactive 模式（默认）：任一 blocked / refuted 编排器整体停机，转人工门。
+- autonomous 模式（`--mode autonomous` 或 `lab.py auto`）：blocked/refuted 条目留置（parked，
+  不销毁、不跳证据门），流水线继续推进其余任务直到全部终态，收尾时汇总待人工跟进条目；
+  预算/证据门/轮次上限等安全边界不变。`--thm --phase` 定向操作在两种模式下都可绕过整体停机。
 - 以当前 orchestrator.finalize 与 host-evidence.md 为准：lit-check 的 UNKNOWN 不进入成文；
   CLEAR 也必须具备当前证明/陈述绑定的审稿、实际执行和实际检索证据。
   宿主如需依次推进多个候选至 lit-check，可在保留前项阻塞状态的同时处理下一候选。

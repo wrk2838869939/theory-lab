@@ -29,6 +29,7 @@ verify 发现缺口退回 derive（≤ policy.max_repair_rounds 轮）；陈述 
   python orchestrator.py --dry-run [--thm ID]       # 预演：渲染该定理全流程提示词
   python orchestrator.py --steps 4                  # 推进 4 个阶段
   python orchestrator.py --auto                     # 循环直到人工门或步数上限
+  python orchestrator.py --auto --mode autonomous   # 自主模式：推进到全部任务终态
   python orchestrator.py --audit                    # 生成审计报告 + 验证附录
   python orchestrator.py --thm THM-1 --phase statement   # 手工指定
 """
@@ -531,6 +532,22 @@ def read_role(agent):
 
 
 # ---------------------------------------------------------------- 状态机
+
+def should_halt_for_blocked(ledger, force_thm=None, force_phase=None, mode="interactive"):
+    """interactive（默认）：任一 blocked/refuted 整体停机转人工门。
+    autonomous：宿主协调者接管停机决策，blocked/refuted 留置，继续其余任务。"""
+    if mode == "autonomous":
+        return False
+    blocked = [it["id"] for it in ledger.get("items", [])
+               if it["stage"] in ("blocked", "refuted")]
+    return bool(blocked) and not (force_thm and force_phase)
+
+
+def parked_items(ledger):
+    """自主模式下留置（pending human follow-up）的条目。"""
+    return [it for it in ledger.get("items", [])
+            if it["stage"] in ("blocked", "refuted")]
+
 
 def pick_active(ledger):
     items = [it for it in ledger["items"] if it["stage"] in pipeline_for(it)]
@@ -1042,6 +1059,9 @@ def main():
     ap = argparse.ArgumentParser(description="闭环多智能体科研系统编排器 v2")
     ap.add_argument("--config", default=str(ROOT / "config.json"))
     ap.add_argument("--auto", action="store_true", help="循环推进直到人工门或步数上限")
+    ap.add_argument("--mode", choices=("interactive", "autonomous"), default=None,
+                    help="运行模式：interactive=人工门停机（默认）；autonomous=宿主协调者"
+                         "自主推进直到全部任务到达终态（预算、证据门、轮次上限等安全边界不变）")
     ap.add_argument("--steps", type=int, default=0, help="本次推进的阶段数")
     ap.add_argument("--dry-run", action="store_true", help="只渲染提示词，不调用模型、不改状态")
     ap.add_argument("--thm", default=None, help="只处理指定定理 id")
@@ -1092,10 +1112,21 @@ def main():
         out("== dry-run 结束 ==")
         return
 
-    total = cfg["policy"]["max_steps_per_run"] if args.auto else args.steps
+    mode = args.mode or (cfg.get("policy", {}) or {}).get("default_mode") or "interactive"
+    if mode not in ("interactive", "autonomous"):
+        out("未知运行模式 " + str(mode) + "，回退 interactive")
+        mode = "interactive"
+    if args.steps:
+        total = args.steps
+    elif args.auto and mode == "autonomous":
+        # 自主模式跑到自然终态；预算、修复/复审轮次与审查轮次仍是硬边界。
+        total = None
+    else:
+        total = cfg["policy"]["max_steps_per_run"]
     done = 0
     reason = None
-    for i in range(total):
+    i = 0
+    while total is None or i < total:
         meta = ledger.get("meta", {})
         if meta.get("paper_gate") == "PASS":
             paper = ROOT / "paper" / "paper.tex"
@@ -1106,11 +1137,11 @@ def main():
                 break
             meta["paper_gate"] = None
             out("全文审查材料已改变或旧状态缺少证据，需重新核验。")
-        blocked = [it["id"] for it in ledger["items"] if it["stage"] in ("blocked", "refuted")]
-        if blocked and not (args.thm and args.phase):
-            reason = "存在阻塞项 {}，需要人工决策（见 reviews/ 与台账 notes）".format(blocked)
+        if should_halt_for_blocked(ledger, args.thm, args.phase, mode):
+            reason = "存在阻塞项 {}，需要人工决策（见 reviews/ 与台账 notes）".format(
+                [it["id"] for it in ledger["items"] if it["stage"] in ("blocked", "refuted")])
             break
-        out("\n=== 步骤 {}/{} ===".format(i + 1, total))
+        out("\n=== 步骤 {} ===".format("{}/{}".format(i + 1, total) if total is not None else i + 1))
         progressed = step(cfg, ledger, force_phase=args.phase, force_id=args.thm)
         save(STATE / "ledger.json", ledger)
         if cfg["policy"].get("auto_commit") is True:
@@ -1119,12 +1150,26 @@ def main():
             reason = "没有可推进的步骤（见上方日志）"
             break
         done += 1
+        i += 1
 
     out("\n" + "=" * 66)
     if reason:
         out("本次推进 {} 步后停止：{}".format(done, reason))
     else:
         out("本次推进 {} 步（步数用尽，可用 --auto 或 --steps 继续）".format(done))
+    if mode == "autonomous":
+        parked = parked_items(ledger)
+        if parked:
+            out("自主模式收尾：{} 项留置待人工跟进：{}".format(
+                len(parked), "、".join("{}({})".format(it["id"], it["stage"]) for it in parked)))
+        out("论文门：{}".format(ledger.get("meta", {}).get("paper_gate") or "未开始"))
+    if reason is None or "没有可推进" in (reason or ""):
+        try:
+            budget = json.loads((STATE / "budget.json").read_text(encoding="utf-8"))
+            if budget.get("attempts", 0) >= budget.get("max_calls", 0):
+                out("注意：外部调用预算已耗尽（state/budget.json）；继续运行需先扩额。")
+        except Exception:
+            pass
     out("当前状态: python orchestrator.py --status")
 
 

@@ -243,3 +243,30 @@ class StateMachineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunModeTests(unittest.TestCase):
+    """interactive 停机转人工；autonomous 留置继续推进其余任务。"""
+
+    def ledger(self):
+        return {"items": [self.item(id="A", stage="blocked"),
+                          self.item(id="B", stage="derive")]}
+
+    def setUp(self):
+        self.item = StateMachineTests("test_markers_require_final_line_and_real_enum_case").item
+
+    def test_interactive_halts_on_blocked(self):
+        ledger = self.ledger()
+        self.assertTrue(o.should_halt_for_blocked(ledger))
+        forced = o.should_halt_for_blocked(ledger, "B", "verify")
+        self.assertFalse(forced)  # --thm + --phase 定向操作仍可绕过整体停机
+
+    def test_autonomous_parks_blocked_and_continues(self):
+        ledger = self.ledger()
+        self.assertFalse(o.should_halt_for_blocked(ledger, mode="autonomous"))
+        self.assertEqual(o.pick_active(ledger)["id"], "B")  # blocked 项被跳过而非销毁
+        self.assertEqual([it["id"] for it in o.parked_items(ledger)], ["A"])
+
+    def test_unknown_mode_falls_back_to_interactive(self):
+        ledger = self.ledger()
+        self.assertTrue(o.should_halt_for_blocked(ledger, mode="bogus"))
