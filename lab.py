@@ -46,7 +46,7 @@ def verify():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("route", dest="route",
+    parser.add_argument("route",
                         choices=("status", "check", "pilot", "pipeline", "auto", "verify"),
                         nargs="?", default="status",
                         help="auto=自主模式推进至全部任务终态；pipeline=interactive 推进 N 阶段")
