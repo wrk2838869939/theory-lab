@@ -52,8 +52,13 @@ def credentials(stdin=False, prompt=False, names=()):
                 os.environ[name] = values[name]
         values.clear()
     elif prompt:
-        for name in names:
-            if not os.environ.get(name):
+        interactive = sys.stdin.isatty()
+        missing = [name for name in names if not os.environ.get(name)]
+        if missing and not interactive:
+            print("非交互环境，跳过密钥输入；未设置: " + ", ".join(missing)
+                  + "（可导出环境变量后重试）", flush=True)
+        for name in missing:
+            if interactive:
                 os.environ[name] = getpass.getpass(name + " (hidden): ")
 
 
